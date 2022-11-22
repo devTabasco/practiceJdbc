@@ -1,0 +1,61 @@
+ *** 오늘 날짜 가져오기 (Date Class + SimpleDateFormat Class) ***
+  String pattern = (isDate)? "yyyy. MM. dd.": "yyyy-MM-dd HH:mm:ss";
+  SimpleDateFormat sdf = new SimpleDateFormat(String pattern);
+  Date date = new Date();
+  String formattedDate = sdf.format(date);
+
+ *** 오늘 날짜 가져오기 (LocalDateTime Class + DateTimeFormatter Class) ***
+  String pattern = (isDate)? "yyyy. MM. dd.": "yyyy-MM-dd HH:mm:ss";
+  LocalDateTime today = LocalDateTime.now();
+  상수 : DateTimeFormatter dateFormat = DateTimeFormatter.ISO_DATE;
+  패턴 : DateTimeFormatter dateFormat = DateTimeFormatter.ofPattern(String Pattern);
+  String formattedDate = today.format(dateFormat);
+ 
+ Date, Calendar --> X    2022-10-27  - 2022-10-26 = 1
+                         2022-10-31 + 1 = 2022-11-01
+                          
+ LocalDateTime = LocalDate + LocalTime
+ ---------------------------------------
+ LocalDate.now() --> 2022-10-28  10/28/2022
+ LocalDate.of(int year, int month, int date)        
+          20221028000000  --> LocalDate.of(2022, 10, 28)
+ int LocalDate.getYear() --> 년도      --> 2022       
+ String LocalDate.getMonth() --> 월   --> October
+ int LocalDate.getDayOfMonth --> 일    --> 28
+ int LocalDate.lengthOfMonth() --> 해당 월의 일 수
+ boolean LocalDate.isLeapYear() --> 윤년 여부
+ String LocalDate.dayOfWeek() --> 요일 --> Friday
+ 
+ int LocalDate.get(ChronoField.MONTH);
+ 
+ 
+ 
+ 
+
+  
+  File Class
+  ----------------------------------------------
+  	Based Byte				Based Character
+  ----------------------------------------------
+  	InputStream Class 		FileReader Class
+  	OutputStream Class 		FileWriter Class
+  ----------------------------------------------
+    BufferedInputStream		BufferedReader 
+  
+ 
+ DAO(Data Access Object)
+  /* String record = hoonzzang,1234,훈짱,01056808050,1 */
+  --> record.split(",") -->hoonzzang 1234 훈짱 01056808050 1
+  
+  StringTokenizer Class
+   
+ VO | DTO
+ Bean 
+  --> 1. 생성자를 명시적으로 작성하지 않는다.
+      2. 데이터 저장소는 Field로 선언 
+         - 반드시 private 접근제한자를 사용
+      3. 데이터를 저장하거나 읽어올 때 는 메서드 활용
+         - 저장 : set + FieldName(param)
+		 - 추출 : get + FieldName() 
+  
+  
