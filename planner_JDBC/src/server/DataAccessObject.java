@@ -62,6 +62,23 @@ public class DataAccessObject {
 		
 	}
 	
+	//transaction MGR
+	public boolean transaction(boolean transaction, Connection connection) {
+		boolean result = false;
+		try {
+			if(transaction) {
+				connection.commit();
+				result = true;
+			}else {
+				connection.rollback();
+			}
+		}catch(SQLException e) {
+			e.printStackTrace();
+		}
+		
+		return result;
+	}
+	
 	//select ID
 	public int isMemberId(MemberBean member) {
 		int result = 0;

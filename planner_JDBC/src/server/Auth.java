@@ -1,6 +1,7 @@
 package server;
 
 import java.sql.Connection;
+import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -28,9 +29,7 @@ public class Auth {
 			if(this.convertToBool(dao.isSame(member))){
 				//Access History Write(type = 1)
 				member.setAccessType(1);
-				if(this.convertToBool(dao.insertAcessHistory(member))){
-					accessResult = true;				
-				}
+				accessResult = dao.transaction(this.convertToBool(dao.insertAcessHistory(member)), connection);
 			}
 		}
 		
