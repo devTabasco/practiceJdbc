@@ -110,6 +110,9 @@ public class UserApp {
 										}else {
 											message = null;
 											direction = 'p';
+											if(userInput[idx].length()==1) {
+												userInput[idx] = "0" + userInput[idx];
+											}
 										}
 									}else {
 										if(userInput[idx].equals("P") || userInput[idx].equals("N")) {

@@ -1,7 +1,6 @@
 package server;
 
 import java.sql.Connection;
-import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -18,39 +17,65 @@ public class Auth {
 		
 	public boolean accessCtl(String clientData) {
 		MemberBean member = (MemberBean)this.setBean(clientData);
-		DataAccessObject dao = new DataAccessObject();
 		boolean accessResult = false;
+		DataAccessObject dao = new DataAccessObject();
 		Connection connection = null;
 		
-		connection =  dao.createConnection();
-		
-		//id존재 여부 파악
-		if(this.convertToBool(dao.isMemberId(member))){
-			if(this.convertToBool(dao.isSame(member))){
-				//Access History Write(type = 1)
-				member.setAccessType(1);
-				accessResult = dao.transaction(this.convertToBool(dao.insertAcessHistory(member)), connection);
-			}
+		/* Connection Open & setAutoCommit(false)*/
+		connection = dao.openConnection();
+		dao.modifyTranStatus(connection, false);
+		/* p1 : id존재여부 */
+		if(this.convertToBool(dao.isMemberId(connection,member))) {
+			/* p2 : id와 password 일치여부 */
+			if(this.convertToBool(dao.isSame(connection, member))) {
+				/* p3 : AccessHistory 기록(1) */
+				if(!this.convertToBool(dao.getAccessState(connection, member))) {
+					member.setAccessType(1);
+					accessResult = dao.setTransaction(this.convertToBool(dao.insAccessHistory(connection, member)), connection);
+				}else {
+					member.setAccessType(-1);
+					if(this.convertToBool(dao.insAccessHistory(connection, member))) {
+						member.setAccessType(1);
+						accessResult = dao.setTransaction(this.convertToBool(dao.insAccessHistory(connection, member)), connection);
+					}
+				}
+			}	
 		}
 		
-		//transaction Management
+		/* TRANSACTION MANAGEMENT */
+		dao.modifyTranStatus(connection, true);
 		dao.closeConnection(connection);
-		
+			
 		return accessResult;
 	}
 	
-	public boolean convertToBool(int result) {
-		return result>0?true:false;
+	public void accessOut(String clientData) {
+		MemberBean member = (MemberBean)this.setBean(clientData);
+		DataAccessObject dao = new DataAccessObject();
+		Connection connection = null;
+		
+		/* Connection Open & setAutoCommit(false)*/
+		connection = dao.openConnection();
+		dao.modifyTranStatus(connection, false);
+		
+		/* 아이디 존재여부 */
+		if(this.convertToBool(dao.isMemberId(connection, member))) {
+			/* p2 : 로그인 상태 여부 */
+			if(this.convertToBool(dao.getAccessState(connection, member))) {
+				/* p3 : AccessHistory 기록(1) */
+				member.setAccessType(-1);
+				dao.setTransaction(this.convertToBool(dao.insAccessHistory(connection, member)), connection);
+			}
+				
+		}
+		
+		/* TRANSACTION MANAGEMENT */
+		dao.modifyTranStatus(connection, true);
+		dao.closeConnection(connection);
 	}
 	
-	public void accessOut(String clientData) {
-		DataAccessObject dao = new DataAccessObject();
-		AccessHistoryBean history = (AccessHistoryBean)this.setBean(clientData);
-		history.setFileIdx(1);
-		history.setAccessDate(this.getDate(false));
-		history.setAccessType(-1);
-		
-		dao.writeAccessHistory(history);
+	private boolean convertToBool(int value) {
+		return value>0?true:false;
 	}
 	
 	private String getDate(boolean isDate) {
@@ -63,8 +88,8 @@ public class Auth {
 		String[] splitData = clientData.split("&");
 		switch(splitData[0].split("=")[1]) {
 		case "-1":
-			object = new AccessHistoryBean();
-			((AccessHistoryBean)object).setAccessCode(splitData[1].split("=")[1]);
+			object = new MemberBean();
+			((MemberBean)object).setAccessCode(splitData[1].split("=")[1]);
 			break;
 		case "1":
 			object = new MemberBean();
@@ -77,30 +102,5 @@ public class Auth {
 		return object;
 	} 
 	
-	/* AccessCode 존재여부 판단 */
-	private boolean compareAccessCode(String code, ArrayList<MemberBean> memberList) {
-		boolean result = false;
-		for(MemberBean member : memberList) {
-			if(code.equals(member.getAccessCode())) {
-				result = true;
-				break;
-			}
-		}
-
-		return result;
-	}
 	
-	/* AccessCode와 SecretCode의 비교 */
-	private boolean isAuth( MemberBean member, ArrayList<MemberBean> memberList) {
-		boolean result = false;
-		for(MemberBean memberInfo : memberList) {
-			if(member.getAccessCode().equals(memberInfo.getAccessCode())) {
-				if(member.getSecretCode().equals(memberInfo.getSecretCode())) {
-					result = true;
-					break;
-				}
-			}
-		}
-		return result;
-	}
 }

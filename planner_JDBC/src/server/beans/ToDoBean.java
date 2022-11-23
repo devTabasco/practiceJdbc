@@ -1,14 +1,13 @@
 package server.beans;
 
 public class ToDoBean {
-	private int fileIdx;
 	private String accessCode;
 	private String startDate;
 	private String endDate;
 	private String visibleType;
 	private String contents;
 	private String   status;
-	private boolean isActive = false;
+	private boolean isActive;
 	private String comments;
 	
 	public String getVisibleType() {
@@ -16,12 +15,6 @@ public class ToDoBean {
 	}
 	public void setVisibleType(String visibleType) {
 		this.visibleType = visibleType;
-	}
-	public int getFileIdx() {
-		return fileIdx;
-	}
-	public void setFileIdx(int fileIdx) {
-		this.fileIdx = fileIdx;
 	}
 	public String getAccessCode() {
 		return accessCode;

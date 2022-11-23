@@ -1,17 +1,10 @@
 package server;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.time.LocalDate;
 import java.util.ArrayList;
 
 import server.beans.AccessHistoryBean;
@@ -20,268 +13,213 @@ import server.beans.ToDoBean;
 
 /* Data File과의 통신 */
 public class DataAccessObject {
-	
 	private PreparedStatement ps;
-	
-	String[] fileInfo = {"D:\\JSFramework\\planner\\src\\database\\MEMBERS.txt", 
-			"D:\\JSFramework\\planner\\src\\database\\ACCESSHISTORY.txt",
-			"D:\\JSFramework\\planner\\src\\database\\TODO.txt"};
+	private ResultSet rs;
+
 	public DataAccessObject() {
-		
+
 	}
-	
-	//connection creation
-	
-	public Connection createConnection() {
+
+	/* CONNECTION CREATION */
+	public Connection openConnection() {
 		Connection connection = null;
 		try {
 			Class.forName("oracle.jdbc.driver.OracleDriver");
-			connection = DriverManager.getConnection("idbc:oracle:thin:@192.168.0.127:1521:xe","changyongdev","1234");
+			connection = DriverManager.getConnection("jdbc:oracle:thin:@192.168.0.127:1521:xe", "changyong", "12345");
 		} catch (ClassNotFoundException e) {
 			System.out.println("Error : OracleDriver None");
 			e.printStackTrace();
 		} catch (SQLException e) {
-			// TODO Auto-generated catch block
 			System.out.println("Error : Can not Connect");
 			e.printStackTrace();
 		}
-		
+
 		return connection;
 	}
-	
-	//connection close
-	
+
+	/* CONNECTION Close */
 	public void closeConnection(Connection connection) {
 		try {
-			if(!connection.isClosed()) {
+			if (connection != null && !connection.isClosed()) {
+				if (this.rs != null && !this.rs.isClosed())
+					this.rs.close();
+				if (this.ps != null && !this.ps.isClosed())
+					this.ps.close();
 				connection.close();
+			}
+
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+	}
+
+	/* Transaction Mgr */
+	public void modifyTranStatus(Connection connection, boolean status) {
+		try {
+			if (connection != null && !connection.isClosed()) {
+				connection.setAutoCommit(status);
 			}
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
-		
 	}
-	
-	//transaction MGR
-	public boolean transaction(boolean transaction, Connection connection) {
+
+	public boolean setTransaction(boolean tran, Connection connection) {
 		boolean result = false;
 		try {
-			if(transaction) {
+			if (tran) {
 				connection.commit();
 				result = true;
-			}else {
+			} else
 				connection.rollback();
-			}
-		}catch(SQLException e) {
+		} catch (SQLException e) {
 			e.printStackTrace();
 		}
-		
 		return result;
 	}
-	
-	//select ID
-	public int isMemberId(MemberBean member) {
+
+	/* [SEL]ID의 존재여부 */
+	public int isMemberId(Connection connection, MemberBean member) {
+		rs = null;
+		String query = "SELECT COUNT(*) AS ISMRID FROM MEMBERS WHERE MEMBER_ID = ?";
 		int result = 0;
-		
-		return result;
-	}
-	//select ID / PW check
-	public int isSame(MemberBean member) {
-		int result = 0;
-		
-		return result;
-	}
-	
-	//AccessHistory insert
-	public int insertAcessHistory(MemberBean member) {
-		int result = 0;
-		
-		return result;
-	}
-	
-	/* 회원정보 수집 */
-	public ArrayList<MemberBean> readDatabase(int fileIdx) {
-		String line;
-		ArrayList<MemberBean> memberList = null;
-		MemberBean member;
-		BufferedReader buffer = null;
-		
-		
-		try {
-			buffer = new BufferedReader(new FileReader(
-							new File(fileInfo[fileIdx])));
-			memberList = new ArrayList<MemberBean>();
-			 
-			while((line = buffer.readLine())!= null) {
-				String[] record = line.split(",");
-				member = new MemberBean();
-				member.setAccessCode(record[0]);
-				member.setSecretCode(record[1]);
-				member.setUserName(record[2]);
-				member.setPhoneNumber(record[3]);
-				member.setActivation(Integer.parseInt(record[4]));
-				memberList.add(member);
-			}
-			
-		} catch (FileNotFoundException e) {
-			System.out.println("파일이 존재하지 않습니다.");
-			e.printStackTrace();
-		} catch (IOException e) {
-			memberList = null;
-			System.out.println("파일로부터 데이터를 가져올 수 없습니다.");
-			e.printStackTrace();
-		}finally {
-			try {
-				buffer.close();
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-		}
-		
-		
-		return memberList;
-	}
-	
-	/* 접속기록 작성 */
-	public boolean writeAccessHistory(AccessHistoryBean accessInfo) {
-		boolean result = false;
-		BufferedWriter writer = null;
 
 		try {
-			writer = new BufferedWriter(new FileWriter(new File(this.fileInfo[accessInfo.getFileIdx()]), true));
-			writer.write(accessInfo.getAccessCode());
-			writer.write(",");
-			writer.write(accessInfo.getAccessDate());
-			writer.write(",");
-			writer.write(accessInfo.getAccessType()+"");
-			writer.newLine();
-			writer.flush();
-			result = true;
-		} catch (IOException e) {
+			this.ps = connection.prepareStatement(query);
+			ps.setNString(1, member.getAccessCode());
+			this.rs = ps.executeQuery();
+
+			while (rs.next()) {
+				result = rs.getInt("ISMRID");
+			}
+		} catch (SQLException e) {
 			e.printStackTrace();
-		}finally {
-			try {writer.close();} catch (IOException e) { e.printStackTrace();}
-		}	
+		}
+
 		return result;
 	}
-	
-	/* TODO List 읽어오기 */
-	public ArrayList<ToDoBean> getToDoList(ToDoBean searchInfo) {
-		ArrayList<ToDoBean> dayList = null;
-		ToDoBean toDo = null;
-		String line;
-		BufferedReader buffer = null;
-		int date, recordCount=1;
-		int[] dateRange = new int[2];
-		
-		LocalDate userDate = LocalDate.of(Integer.parseInt(searchInfo.getStartDate().substring(0, 4)), 
-				Integer.parseInt(searchInfo.getStartDate().substring(4)), 1);
-		
+
+	/* [SEL]ID와 PASSWORD의 일치여부 */
+	public int isSame(Connection connection, MemberBean member) {
+		this.rs = null;
+		String query = "SELECT COUNT(*) AS ISACCESS FROM MEMBERS WHERE MEMBER_ID = ? AND PASSWORD = ?";
+		int result = 0;
+
 		try {
-			buffer = new BufferedReader(new FileReader(new File(fileInfo[searchInfo.getFileIdx()])));
-			while((line=buffer.readLine()) != null) {
-				if(recordCount == 1) dayList = new ArrayList<ToDoBean>();
-				
-				String[] record = line.split(",");
-				date = Integer.parseInt(searchInfo.getStartDate());
-				dateRange[0] = Integer.parseInt(record[1].substring(0, 8));
-				dateRange[1] = Integer.parseInt(record[2].substring(0, 8));
-								
-				if(date > dateRange[0]/100) dateRange[0] = Integer.parseInt(date + "01");
-				if(date < dateRange[1]/100) {
-					dateRange[1] = Integer.parseInt(date + "" + userDate.lengthOfMonth());
-				}
-				
-				for(int idx=dateRange[0]; idx<=dateRange[1]; idx++) {
-					if(recordCount != 1) {
-						if(this.duplicateCheck(dayList, idx+"")) {
-							continue;
-						}
-					}
-					toDo = new ToDoBean();
-					toDo.setStartDate(idx+"");
-					dayList.add(toDo);
-				}
-				
-				recordCount++;
+			this.ps = connection.prepareStatement(query);
+			ps.setNString(1, member.getAccessCode());
+			ps.setNString(2, member.getSecretCode());
+			rs = ps.executeQuery();
+
+			while (rs.next()) {
+				result = rs.getInt("ISACCESS");
 			}
-			buffer.close();
-		} catch (FileNotFoundException e) {
+		} catch (SQLException e) {
 			e.printStackTrace();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}finally {
-			try {
-				if (buffer != null) buffer.close();
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
 		}
-		
-		return dayList;
+
+		return result;
 	}
-	
-	/* 특정기간의 할일 목록 가져오기 */
-	public ArrayList<ToDoBean> getToDoList2(ToDoBean searchInfo){
-		ArrayList<ToDoBean> toDoList = new ArrayList<ToDoBean>();
-		ToDoBean toDo = null;
-		BufferedReader reader = null;
-		String line = null;
-		String[] record = null;
-		
+
+	/* [SEL]ACCESSSTATE */
+	public int getAccessState(Connection connection, MemberBean member) {
+		this.rs = null;
+		String query = "SELECT SUM(AH_STATE) AS ISACCESS FROM ACCESSHISTORY WHERE AH_MRID = ?";
+		int result = 0;
+
 		try {
-			 reader = new BufferedReader(new FileReader(new File(fileInfo[searchInfo.getFileIdx()])));
-			
-			while((line=reader.readLine()) != null) {
-				record = line.split(",");
-				/* 조건 적용 1. accessCode 2. visibleType */
-				if(!record[0].equals(searchInfo.getAccessCode())) continue;
-				if(searchInfo.getVisibleType() != null) {
-					if(!record[5].equals(searchInfo.getVisibleType())) continue;
-				}
-				/* 선택날짜가 등록된 할 일의 날짜범위에 포함 여부 및 추출 */
-				for(int searchDate=Integer.parseInt(searchInfo.getStartDate().substring(0, 8)); 
-						searchDate<=Integer.parseInt(searchInfo.getEndDate().substring(0, 8)); 
-						searchDate++) {
-					for(int toDoDate=Integer.parseInt(record[1].substring(0, 8));
-							toDoDate<=Integer.parseInt(record[2].substring(0, 8)); 
-							toDoDate++) {
-						if(searchDate == toDoDate) {
-							toDo = new ToDoBean();
-							toDo.setAccessCode(searchDate + "");
-							toDo.setStartDate(record[1]);
-							toDo.setEndDate(record[2]);
-							toDo.setContents(record[3]);
-							toDo.setStatus(record[4]);
-							toDo.setActive(record[5].equals("A")? true: false);
-							toDo.setComments(record[6]);
-							toDoList.add(toDo);
-						}
-					}
-				} 
+			this.ps = connection.prepareStatement(query);
+			ps.setNString(1, member.getAccessCode());
+			rs = ps.executeQuery();
+
+			while (rs.next()) {
+				result = rs.getInt("ISACCESS");
 			}
-			
-		} catch (FileNotFoundException e) {
-			System.out.println("파일이 없어요~");
+		} catch (SQLException e) {
 			e.printStackTrace();
-		} catch (IOException e) {
-			System.out.println("입출력이 안돼요~");
-			e.printStackTrace();
-		} finally {
-			if (reader != null)	try {reader.close();} catch (IOException e) {e.printStackTrace();}	
 		}
-		
+
+		return result;
+	}
+
+	/* [INS]ACCESSHISTORY */
+	public int insAccessHistory(Connection connection, MemberBean member) {
+		String query = "INSERT INTO AH(AH_MRID, AH_DATE, AH_STATE) " + "VALUES( ?, DEFAULT, ?)";
+		int result = 0;
+
+		try {
+			this.ps = connection.prepareStatement(query);
+			ps.setNString(1, member.getAccessCode());
+			ps.setInt(2, member.getAccessType());
+			result = ps.executeUpdate();
+
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+		return result;
+	}
+
+	public ArrayList<ToDoBean> getToDoDate(Connection connection, ToDoBean todo) {
+		ArrayList<ToDoBean> toDoList = new ArrayList<ToDoBean>();
+		ToDoBean tb = null;
+		String query = "SELECT TO_CHAR(TD_DATE, 'YYYYMMDD') AS STARTDATE, "
+				+ "TO_CHAR(TD_EDATE, 'YYYYMMDD') AS ENDDATE " + "FROM TODO "
+				+ "WHERE TD_MRID = ? AND TO_CHAR(TD_DATE, 'YYYYMM') = ?";
+
+		try {
+			this.ps = connection.prepareStatement(query);
+			this.ps.setNString(1, todo.getAccessCode());
+			this.ps.setNString(2, todo.getStartDate());
+
+			this.rs = this.ps.executeQuery();
+			while (this.rs.next()) {
+				tb = new ToDoBean();
+				tb.setStartDate(this.rs.getNString("STARTDATE"));
+				tb.setEndDate(this.rs.getNString("ENDDATE"));
+				toDoList.add(tb);
+			}
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
 		return toDoList;
 	}
-	
-	private boolean duplicateCheck(ArrayList<ToDoBean> dayList, String compareValue) {
-		boolean result = false;
-		for(int listIdx=0; listIdx<dayList.size(); listIdx++) {
-			if(compareValue.equals(dayList.get(listIdx).getStartDate())) {
-				result = true;
-				break;
+
+	public ArrayList<ToDoBean> getToDoList(Connection connection, ToDoBean todo) {
+		ArrayList<ToDoBean> toDoList = new ArrayList<ToDoBean>();
+		ToDoBean tb = null;
+		
+		String query = "SELECT * "
+				+ "FROM TODOLIST "
+				+ "WHERE MRID = ? "
+				+ "AND (SUBSTR(STARTDATE, 1, 8) >= ? AND "
+				+ "SUBSTR(ENDDATE, 1, 8) <= ?) " + (todo.getVisibleType() == null ? "" : "  AND ACTIVE = ?");
+		
+
+		try {
+			this.ps = connection.prepareStatement(query);
+			this.ps.setNString(1, todo.getAccessCode());
+			this.ps.setNString(2, todo.getStartDate());
+			this.ps.setNString(3, todo.getEndDate());
+			if (todo.getVisibleType() != null) {
+				this.ps.setNString(4, todo.getVisibleType());
 			}
+
+			this.rs = this.ps.executeQuery();
+			while (this.rs.next()) {
+				tb = new ToDoBean();
+				tb.setAccessCode(this.rs.getNString("ACCESSCODE"));
+				tb.setStartDate(this.rs.getNString("STARTDATE"));
+				tb.setEndDate(this.rs.getNString("ENDDATE"));
+				tb.setContents(this.rs.getNString("CONTENTS"));
+				tb.setStatus(this.rs.getNString("STATUS"));
+				tb.setActive(this.rs.getNString("ACTIVE").equals("A")? true:false);
+				tb.setComments(this.rs.getNString("COMMENTS"));
+				
+				toDoList.add(tb);
+			}
+		} catch (SQLException e) {
+			e.printStackTrace();
 		}
-		return result;
+		return toDoList;
 	}
 }
